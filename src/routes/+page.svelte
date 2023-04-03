@@ -1,10 +1,24 @@
 <script>
     import { onMount } from 'svelte';
+    // Import the functions you need from the SDKs you need
+    import { initializeApp } from "firebase/app";
+    import { getFirestore, collection, addDoc, doc, getDoc, updateDoc, onSnapshot } from 'firebase/firestore';
+
+    // Your web app's Firebase configuration
+    const firebaseConfig = {
+
+    };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
     let localSource = null;
     let remoteSource = null;
     let cameras = [];
     let value = null;
     let isCameraWorking = true;
+    let callId = '';
 
     const getVideo = async (camera) =>{
         try{
@@ -63,20 +77,26 @@
         return { roomWithOffer, peerConnection };
     }
 
-    const sendOffer = (offer) => {
-        console.log('Send offer', offer)
+    const createCall = async (offer) => {
+        console.log('Send offer', offer);
 
-        // Just save locally for now. 
-        localStorage.setItem("offer", JSON.stringify(offer));
+        const offerCandidates = []; 
+        const answerCandidates = []
+
+        const call = await addDoc(collection(db, "calls"), { offer, offerCandidates, answerCandidates });
+
+        return call;
     }
 
-
     const startCall = async () => {
+        let answerCandidatesCount = 0;
+        let answerInitiated = false;
         // Share the offer with the peer, via Firebase, etc
         const { roomWithOffer: offer, peerConnection } = await createOffer();
 
-        // Share the offer information
-        sendOffer(offer);
+        // Add the call to the DB
+        let call = await createCall(offer);
+        callId = call.id;
 
         // Send the video and audio tracks to the peer connection
         localSource.srcObject.getTracks().forEach(track => {
@@ -94,36 +114,71 @@
 
         // Listen for remote ICE candidates
         peerConnection.onicecandidate = (event) => {
+            console.log('caller onicecandidate', event);
             // If there are ice candidates, share them with the peer, so the peer can add them
-            // peerConnection.addIceCandidate(e.candidate)
+            // peerConnection.addIceCandidate(e.candidate);
             if(event.candidate){
                 console.log(event.candidate.toJSON());
+
+                addOfferCandidate(call, event.candidate, true);
             }
         };
 
-        // Listen for remote answer (For now we are cheating by getting a hardcoded answer)
-        setTimeout(async () => {
-            try{
-                console.log('Caller peerConnection.setRemoteDescription');
-                const answer = new RTCSessionDescription(getOffer());
+        // Listen for changes to the call
+        const unsub = onSnapshot(doc(db, "calls", callId), async (doc) => {
+            const call = doc.data();
+
+            // If the answer has been generated, complete the peer connection
+            if(!answerInitiated && call.answer){
+                const answer = new RTCSessionDescription(call.answer);
+                console.log('answer', answer);
                 await peerConnection.setRemoteDescription(answer);
+                answerInitiated = true;
             }
-            catch(e){
-                console.error(e);
+
+            // Listen for the addition of answerCandidates
+            // TODO: Check answerCandidatesCount so that we only run this on answerCandidates changes
+            if(call.answerCandidates){ // && answerCandidates.count != answerCandidatesCount
+
             }
-            
-        }, 5000);
+        });
+
     }
 
-    const sendReponse = (answer) => {
-        console.log('Send answer', answer)
+    const sendReponse = async (callDoc, answer) => {
+        console.log('Send answer', answer);
 
-        // Just save locally for now. 
-        localStorage.setItem("offerResponse", JSON.stringify(answer));
+        // Update the original record
+        try{
+            await updateDoc(callDoc, { answer });
+        }
+        catch(e){
+            console.log(e);
+        }
     }
 
-    const getOffer = () => {
-        return JSON.parse(localStorage.getItem("offer"));
+    const addOfferCandidate = async (callDoc, candidate, isCaller) => {
+        const candidates = isCaller ? callDoc.offerCandidates : callDoc.answerCandidates;
+        candidates.push(candidate);
+        const updatedCandidates = isCaller ? { offerCandidates: candidates  } : { answerCandidates: candidates  };
+        await updateDoc(callDoc, updatedCandidates);
+    }
+
+    const getOffer = async (callId) => {
+        const callsCollection = collection(db, 'calls');
+        // const callsSnaptshot = await getDocs(callsCollection);
+        const callDoc = doc(db, 'calls', callId);
+
+        const call = await getDoc(callDoc);
+
+        // const offerCandidates = callsCollection.collection('offerCandidates');
+        // const answerCandidates = callsCollection.collection('answerCandidates');
+
+        const offer = call.data().offer;
+
+        console.log('getOffer', offer);
+
+        return { callDoc, offer } ;
     }
 
     const answerCall = async () => {
@@ -134,12 +189,12 @@
             // If there are ice candidates, share them with the peer, so the peer can add them
             // peerConnection.addIceCandidate(e.candidate)
             if(event.candidate){
-                console.log(event.candidate.toJSON());
+                console.log('answer candidate', event.candidate.toJSON());
                 peerConnection.addIceCandidate(event.candidate.toJSON());
             }
         };
 
-        const offerDescription = getOffer();
+        const { callDoc, offer: offerDescription } = await getOffer(callId);
 
         const remoteDescription = new RTCSessionDescription(offerDescription)
         peerConnection.setRemoteDescription(remoteDescription);
@@ -152,7 +207,7 @@
             sdp: answerDescription.sdp,
         };
 
-        sendReponse(answer);
+        await sendReponse(callDoc, answer);
 
         console.log('Answer finished');
     }
@@ -199,6 +254,8 @@
         </video>
 
         <button on:click={startCall}>Start Call</button>
+
+        <input type="text" value={callId} />
 
         <button on:click={answerCall}>Answer Call</button>
 
