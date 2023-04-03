@@ -77,21 +77,36 @@
         return { roomWithOffer, peerConnection };
     }
 
+    const addOfferCandidate = async (callRef, candidate, isCaller) => {
+        const docSnap = await getDoc(callRef);
+        const call = docSnap.data();
+
+        const candidates = isCaller ? call.offerCandidates : call.answerCandidates;
+
+        candidates.push(candidate.toJSON() );
+        const updatedCandidates = isCaller ? { offerCandidates: candidates } : { answerCandidates: candidates };
+
+        await updateDoc(callRef, call);
+    }
+
     const createCall = async (offer) => {
         console.log('Send offer', offer);
 
         const offerCandidates = []; 
         const answerCandidates = []
 
-        const call = await addDoc(collection(db, "calls"), { offer, offerCandidates, answerCandidates });
+        const callRef = await addDoc(collection(db, "calls"), { offer, offerCandidates, answerCandidates });
+        const docSnap = await getDoc(callRef);
 
-        return call;
+        const call = docSnap.data();
+
+        return { ...call, id: callRef.id };
     }
 
     const startCall = async () => {
         let answerCandidatesCount = 0;
         let answerInitiated = false;
-        // Share the offer with the peer, via Firebase, etc
+        // Create the WebRTC offer and peer connection
         const { roomWithOffer: offer, peerConnection } = await createOffer();
 
         // Add the call to the DB
@@ -116,7 +131,6 @@
         peerConnection.onicecandidate = (event) => {
             console.log('caller onicecandidate', event);
             // If there are ice candidates, share them with the peer, so the peer can add them
-            // peerConnection.addIceCandidate(e.candidate);
             if(event.candidate){
                 console.log(event.candidate.toJSON());
 
@@ -128,40 +142,23 @@
         const unsub = onSnapshot(doc(db, "calls", callId), async (doc) => {
             const call = doc.data();
 
-            // If the answer has been generated, complete the peer connection
-            if(!answerInitiated && call.answer){
-                const answer = new RTCSessionDescription(call.answer);
-                console.log('answer', answer);
-                await peerConnection.setRemoteDescription(answer);
-                answerInitiated = true;
-            }
-
-            // Listen for the addition of answerCandidates
-            // TODO: Check answerCandidatesCount so that we only run this on answerCandidates changes
-            if(call.answerCandidates){ // && answerCandidates.count != answerCandidatesCount
-
+            console.log('Listening to call changes', call);
+            // Listen for the addition of offerCandidates
+            if(call.offerCandidates.length > 0){
+                console.log('Caller Recieved offer canidates');
+                answerCandidatesCount += 1;
+                peerConnection.addIceCandidate(call.offerCandidates[answerCandidatesCount]);
             }
         });
 
     }
 
-    const sendReponse = async (callDoc, answer) => {
-        console.log('Send answer', answer);
+    // TODO: Consider just passing the ID, and then calling based on the ID, so we don't have to mess with this.
+    const updateCallDB = async (callDoc, answer) => {
+        console.log('Update DB with call answer', answer);
 
         // Update the original record
-        try{
-            await updateDoc(callDoc, { answer });
-        }
-        catch(e){
-            console.log(e);
-        }
-    }
-
-    const addOfferCandidate = async (callDoc, candidate, isCaller) => {
-        const candidates = isCaller ? callDoc.offerCandidates : callDoc.answerCandidates;
-        candidates.push(candidate);
-        const updatedCandidates = isCaller ? { offerCandidates: candidates  } : { answerCandidates: candidates  };
-        await updateDoc(callDoc, updatedCandidates);
+        await updateDoc(callDoc, { answer });
     }
 
     const getOffer = async (callId) => {
@@ -170,9 +167,6 @@
         const callDoc = doc(db, 'calls', callId);
 
         const call = await getDoc(callDoc);
-
-        // const offerCandidates = callsCollection.collection('offerCandidates');
-        // const answerCandidates = callsCollection.collection('answerCandidates');
 
         const offer = call.data().offer;
 
@@ -183,18 +177,18 @@
 
     const answerCall = async () => {
         const peerConnection = createPeerConnection();
+        let answerCandidatesCount = 1;
+
+        const { callDoc, offer: offerDescription } = await getOffer(callId);
 
         // Get candidates for caller, save to db
         peerConnection.onicecandidate = (event) => {
             // If there are ice candidates, share them with the peer, so the peer can add them
-            // peerConnection.addIceCandidate(e.candidate)
             if(event.candidate){
-                console.log('answer candidate', event.candidate.toJSON());
-                peerConnection.addIceCandidate(event.candidate.toJSON());
+                console.log('answer peerConnection.onicecandidate', event.candidate.toJSON());
+                addOfferCandidate(callDoc, event.candidate, false);
             }
         };
-
-        const { callDoc, offer: offerDescription } = await getOffer(callId);
 
         const remoteDescription = new RTCSessionDescription(offerDescription)
         peerConnection.setRemoteDescription(remoteDescription);
@@ -207,7 +201,22 @@
             sdp: answerDescription.sdp,
         };
 
-        await sendReponse(callDoc, answer);
+        await updateCallDB(callDoc, answer);
+        
+        // Listen for changes to the call
+        const unsub = onSnapshot(doc(db, "calls", callId), async (doc) => {
+            const call = doc.data();
+
+            console.log('Listening to call changes', call);
+
+            // Listen for the addition of answerCandidates
+            // TODO: Check answerCandidatesCount so that we only run this on answerCandidates changes
+            if(call.answerCandidates){ // && answerCandidates.count != answerCandidatesCount
+                console.log('Responded recieved ice candidate');
+                peerConnection.addIceCandidate(call.answerCandidates[answerCandidatesCount]);
+                answerCandidatesCount++;
+            }
+        });
 
         console.log('Answer finished');
     }
