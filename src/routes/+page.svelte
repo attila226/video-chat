@@ -4,7 +4,7 @@
     import { initializeApp } from "firebase/app";
     import { getFirestore, collection, addDoc, doc, getDoc, updateDoc, onSnapshot } from 'firebase/firestore';
 
-    import { PUBLIC_FIREBASE_CONFIG } from '$env/static/public'
+    import { PUBLIC_FIREBASE_CONFIG } from '$env/static/public';
 
     // Your web app's Firebase configuration
     const firebaseConfig = JSON.parse(PUBLIC_FIREBASE_CONFIG);
@@ -105,7 +105,7 @@
 
     const startCall = async () => {
         let answerCandidatesCount = 0;
-        let answerInitiated = false;
+        let offerReceived = false;
         // Create the WebRTC offer and peer connection
         const { roomWithOffer: offer, peerConnection } = await createOffer();
 
@@ -142,7 +142,13 @@
         const unsub = onSnapshot(doc(db, "calls", callId), async (doc) => {
             const call = doc.data();
 
-            console.log('Listening to call changes', call);
+             // Listen for remote answer
+             if(call.offer && !offerReceived){
+                offerReceived = true;
+                const answer = new RTCSessionDescription(call.offer);
+                await peerConnection.setRemoteDescription(answer);
+             }
+
             // Listen for the addition of offerCandidates
             if(call.offerCandidates.length > 0){
                 console.log('Caller Recieved offer canidates');
@@ -162,12 +168,8 @@
     }
 
     const getOffer = async (callId) => {
-        const callsCollection = collection(db, 'calls');
-        // const callsSnaptshot = await getDocs(callsCollection);
         const callDoc = doc(db, 'calls', callId);
-
         const call = await getDoc(callDoc);
-
         const offer = call.data().offer;
 
         console.log('getOffer', offer);
@@ -206,8 +208,6 @@
         // Listen for changes to the call
         const unsub = onSnapshot(doc(db, "calls", callId), async (doc) => {
             const call = doc.data();
-
-            console.log('Listening to call changes', call);
 
             // Listen for the addition of answerCandidates
             // TODO: Check answerCandidatesCount so that we only run this on answerCandidates changes
