@@ -4,10 +4,10 @@
     import { initializeApp } from "firebase/app";
     import { getFirestore, collection, addDoc, doc, getDoc, updateDoc, onSnapshot } from 'firebase/firestore';
 
-    // Your web app's Firebase configuration
-    const firebaseConfig = {
+    import { PUBLIC_FIREBASE_CONFIG } from '$env/static/public'
 
-    };
+    // Your web app's Firebase configuration
+    const firebaseConfig = JSON.parse(PUBLIC_FIREBASE_CONFIG);
 
     // Initialize Firebase
     const app = initializeApp(firebaseConfig);
