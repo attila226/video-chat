@@ -1,275 +1,299 @@
 <script>
-    import { onMount, onDestroy } from 'svelte';
-    // Import the functions you need from the SDKs you need
-    import { initializeApp } from "firebase/app";
-    import { getFirestore, collection, addDoc, doc, getDoc, updateDoc, onSnapshot } from 'firebase/firestore';
+	import { onMount, onDestroy } from 'svelte';
+	// Import the functions you need from the SDKs you need
+	import { initializeApp } from 'firebase/app';
+	import {
+		getFirestore,
+		collection,
+		addDoc,
+		doc,
+		getDoc,
+		updateDoc,
+		onSnapshot
+	} from 'firebase/firestore';
 
-    import { PUBLIC_FIREBASE_CONFIG } from '$env/static/public';
+	import { PUBLIC_FIREBASE_CONFIG } from '$env/static/public';
 
-    // Your web app's Firebase configuration
-    const firebaseConfig = JSON.parse(PUBLIC_FIREBASE_CONFIG);
+	// Your web app's Firebase configuration
+	const firebaseConfig = JSON.parse(PUBLIC_FIREBASE_CONFIG);
 
-    // Initialize Firebase
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
+	// Initialize Firebase
+	const app = initializeApp(firebaseConfig);
+	const db = getFirestore(app);
 
-    let localSource = null;
-    let remoteSource = null;
-    let cameras = [];
-    let value = null;
-    let isCameraWorking = true;
-    let callId = '';
+	let localSource = null;
+	let remoteSource = null;
+	let cameras = [];
+	let value = null;
+	let isCameraWorking = true;
+	let callId = '';
 
-    let unsubCaller = ()=>{}, unsubAnswer = ()=>{};
+	let unsubCaller = () => {},
+		unsubAnswer = () => {};
 
-    // Clear Firebase references when leaving page
-    onDestroy(() => {unsubCaller(); unsubAnswer();});
+	// Clear Firebase references when leaving page
+	onDestroy(() => {
+		unsubCaller();
+		unsubAnswer();
+	});
 
-    const getVideo = async (camera) =>{
-        try{
-            const videoConstaints = camera ? { deviceId: { exact: camera.deviceId } }: true;
-            return await navigator.mediaDevices.getUserMedia({video: videoConstaints, audio: false });
-        }
-        catch(error){
-            console.log(error);
-            throw new Error('Camera not available');
-        }
-    }
+	const getVideo = async (camera) => {
+		try {
+			const videoConstaints = camera ? { deviceId: { exact: camera.deviceId } } : true;
+			return await navigator.mediaDevices.getUserMedia({ video: videoConstaints, audio: false });
+		} catch (error) {
+			console.log(error);
+			throw new Error('Camera not available');
+		}
+	};
 
-    const camerUpdated = async () => {
-        isCameraWorking = true;
+	const camerUpdated = async () => {
+		isCameraWorking = true;
 
-        try {
-            localSource.srcObject = await getVideo(value);
-        }
-        catch(error){
-            console.log('camerUpdated error', error);
-            isCameraWorking = false;
-        }
-        
-    }
+		try {
+			localSource.srcObject = await getVideo(value);
+		} catch (error) {
+			console.log('camerUpdated error', error);
+			isCameraWorking = false;
+		}
+	};
 
-    // https://webrtc.org/getting-started/peer-connections
-    function createPeerConnection(){
-        const config = {
-            iceServers: [
-                {
-                urls: ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'],
-                },
-            ],
-            iceCandidatePoolSize: 10,
-            configuration: {
-                offerToReceiveAudio: true,
-                offerToReceiveVideo: true
-            },
-        };
+	// https://webrtc.org/getting-started/peer-connections
+	function createPeerConnection() {
+		const config = {
+			iceServers: [
+				{
+					urls: ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302']
+				}
+			],
+			iceCandidatePoolSize: 10,
+			configuration: {
+				offerToReceiveAudio: true,
+				offerToReceiveVideo: true
+			}
+		};
 
-        return new RTCPeerConnection(config);
-    }
+		return new RTCPeerConnection(config);
+	}
 
-    const createOffer = async () => {
-        const offerOptions = { offerToReceiveAudio: true, offerToReceiveVideo: true};
-        const peerConnection = createPeerConnection();
+	const createOffer = async () => {
+		const offerOptions = { offerToReceiveAudio: true, offerToReceiveVideo: true };
+		const peerConnection = createPeerConnection();
 
-        const offer = await peerConnection.createOffer(offerOptions);
-        await peerConnection.setLocalDescription(offer);
+		const offer = await peerConnection.createOffer(offerOptions);
+		await peerConnection.setLocalDescription(offer);
 
-        const roomWithOffer = {
-            sdp: offer.sdp,
-            type: offer.type,
-        };
+		const roomWithOffer = {
+			sdp: offer.sdp,
+			type: offer.type
+		};
 
-        return { roomWithOffer, peerConnection };
-    }
+		return { roomWithOffer, peerConnection };
+	};
 
-    const addOfferCandidate = async (callRef, candidate, isCaller = false) => {
-        const docSnap = await getDoc(callRef);
-        const call = docSnap.data();
+	const addOfferCandidate = async (callRef, candidate, isCaller = false) => {
+		const docSnap = await getDoc(callRef);
+		const call = docSnap.data();
 
-        const candidates = isCaller ? call.offerCandidates : call.answerCandidates;
+		const candidates = isCaller ? call.offerCandidates : call.answerCandidates;
 
-        candidates.push(candidate.toJSON() );
+		candidates.push(candidate.toJSON());
 
-        await updateDoc(callRef, call);
-    }
+		await updateDoc(callRef, call);
+	};
 
-    const createCall = async (offer) => {
-        console.log('Send offer', offer);
+	const createCall = async (offer) => {
+		console.log('Send offer', offer);
 
-        const offerCandidates = []; 
-        const answerCandidates = []
+		const offerCandidates = [];
+		const answerCandidates = [];
 
-        const callRef = await addDoc(collection(db, "calls"), { offer, offerCandidates, answerCandidates });
-        const docSnap = await getDoc(callRef);
+		const callRef = await addDoc(collection(db, 'calls'), {
+			offer,
+			offerCandidates,
+			answerCandidates
+		});
+		const docSnap = await getDoc(callRef);
 
-        const call = docSnap.data();
+		const call = docSnap.data();
 
-        return { ...call, id: callRef.id };
-    }
+		return { ...call, id: callRef.id };
+	};
 
-    const startCall = async (callId) => {
-        let answerCandidatesCount = 0;
-        let answerReceived = false;
-        // Create the WebRTC offer and peer connection
-        const { roomWithOffer: offer, peerConnection } = await createOffer();
+	const startCall = async (callId) => {
+		let answerCandidatesCount = 0;
+		let answerReceived = false;
+		// Create the WebRTC offer and peer connection
+		const { roomWithOffer: offer, peerConnection } = await createOffer();
 
-        // Add the call to the DB
-        let call = await createCall(offer);
-        callId = call.id;
+		// Add the call to the DB
+		let call = await createCall(offer);
+		callId = call.id;
 
-        // Send the video and audio tracks to the peer connection
-        localSource.srcObject.getTracks().forEach(track => {
-            console.log('Add local tracks to peerConnection', track);
-            peerConnection.addTrack(track, localSource.srcObject);
-        });
+		// Send the video and audio tracks to the peer connection
+		localSource.srcObject.getTracks().forEach((track) => {
+			console.log('Add local tracks to peerConnection', track);
+			peerConnection.addTrack(track, localSource.srcObject);
+		});
 
-        // Listen for remote tracks
-        peerConnection.ontrack = event => {
-            console.log('get remote track', event);
-            event.streams[0].getTracks().forEach(track => {
-                remoteSource.srcObject.addTrack(track);
-            })
-        }
+		// Listen for remote tracks
+		peerConnection.ontrack = (event) => {
+			console.log('get remote track', event);
+			event.streams[0].getTracks().forEach((track) => {
+				remoteSource.srcObject.addTrack(track);
+			});
+		};
 
-        // Listen for remote ICE candidates
-        peerConnection.onicecandidate = (event) => {
-            console.log('caller onicecandidate', event);
-            // If there are ice candidates, share them with the peer, so the peer can add them
-            if(event.candidate){
-                console.log(event.candidate.toJSON());
+		// Listen for remote ICE candidates
+		peerConnection.onicecandidate = (event) => {
+			console.log('caller onicecandidate', event);
+			// If there are ice candidates, share them with the peer, so the peer can add them
+			if (event.candidate) {
+				console.log(event.candidate.toJSON());
 
-                addOfferCandidate(call, event.candidate, true);
-            }
-        };
+				addOfferCandidate(call, event.candidate, true);
+			}
+		};
 
-        // Listen for changes to the call
-        unsubCaller = onSnapshot(doc(db, "calls", callId), async (doc) => {
-            const call = doc.data();
+		// Listen for changes to the call
+		unsubCaller = onSnapshot(doc(db, 'calls', callId), async (doc) => {
+			const call = doc.data();
 
-             // Listen for remote answer
-             if(call.answer && !answerReceived){
-                answerReceived = true;
-                // onicecandidate is not firing, indicating an issue with the peer connection
-                const answerDescription = new RTCSessionDescription(call.answer);
-                peerConnection.setRemoteDescription(answerDescription);
-             }
+			// Listen for remote answer
+			if (call.answer && !answerReceived) {
+				answerReceived = true;
+				// onicecandidate is not firing, indicating an issue with the peer connection
+				const answerDescription = new RTCSessionDescription(call.answer);
+				peerConnection.setRemoteDescription(answerDescription);
+			}
 
-            // Listen for the addition of offerCandidates
-            if(call.answerCandidates?.length > 0){
-                //console.log('Caller Recieved answer ICE canidates');
-                const candidate = new RTCIceCandidate(call.answerCandidates[answerCandidatesCount]);
-                peerConnection.addIceCandidate(candidate);
-                answerCandidatesCount += 1;
-            }
-        });
+			// Listen for the addition of offerCandidates
+			if (call.answerCandidates?.length > 0) {
+				//console.log('Caller Recieved answer ICE canidates');
+				const candidate = new RTCIceCandidate(call.answerCandidates[answerCandidatesCount]);
+				peerConnection.addIceCandidate(candidate);
+				answerCandidatesCount += 1;
+			}
+		});
 
-        return callId;
-    }
+		return callId;
+	};
 
-    const updateCallDB = async (callDoc, answer) => {
-        // Update the original record
-        await updateDoc(callDoc, { answer });
-    }
+	const updateCallDB = async (callDoc, answer) => {
+		// Update the original record
+		await updateDoc(callDoc, { answer });
+	};
 
-    const getOffer = async (callId) => {
-        const callDoc = doc(db, 'calls', callId);
-        const call = await getDoc(callDoc);
-        const offer = call.data().offer;
+	const getOffer = async (callId) => {
+		const callDoc = doc(db, 'calls', callId);
+		const call = await getDoc(callDoc);
+		const offer = call.data().offer;
 
-        return { callDoc, offer } ;
-    }
+		return { callDoc, offer };
+	};
 
-    const answerCall = async (callId) => {
-        const peerConnection = createPeerConnection();
-        let offerCandidatesCount = 0;
+	const answerCall = async (callId) => {
+		const peerConnection = createPeerConnection();
+		let offerCandidatesCount = 0;
 
-        const { callDoc, offer: offerDescription } = await getOffer(callId);
+		const { callDoc, offer: offerDescription } = await getOffer(callId);
 
-        // Get candidates for caller, save to db
-        peerConnection.onicecandidate = (event) => {
-            // If there are ice candidates, share them with the peer, so the peer can add them
-            if(event.candidate){
-                console.log('answer onicecandidate', event.candidate.toJSON());
-                addOfferCandidate(callDoc, event.candidate, false);
-            }
-        };
+		// Get candidates for caller, save to db
+		peerConnection.onicecandidate = (event) => {
+			// If there are ice candidates, share them with the peer, so the peer can add them
+			if (event.candidate) {
+				console.log('answer onicecandidate', event.candidate.toJSON());
+				addOfferCandidate(callDoc, event.candidate, false);
+			}
+		};
 
-        const remoteDescription = new RTCSessionDescription(offerDescription);
-        peerConnection.setRemoteDescription(remoteDescription);
+		const remoteDescription = new RTCSessionDescription(offerDescription);
+		peerConnection.setRemoteDescription(remoteDescription);
 
-        const answerDescription = await peerConnection.createAnswer({ offerToReceiveAudio: true, offerToReceiveVideo: true});
-        await peerConnection.setLocalDescription(answerDescription);
+		const answerDescription = await peerConnection.createAnswer({
+			offerToReceiveAudio: true,
+			offerToReceiveVideo: true
+		});
+		await peerConnection.setLocalDescription(answerDescription);
 
-        const answer = {
-            type: answerDescription.type,
-            sdp: answerDescription.sdp,
-        };
+		const answer = {
+			type: answerDescription.type,
+			sdp: answerDescription.sdp
+		};
 
-        await updateCallDB(callDoc, answer);
-        
-        // Listen for changes to the call
-        unsubAnswer = onSnapshot(doc(db, "calls", callId), async (doc) => {
-            const call = doc.data();
+		await updateCallDB(callDoc, answer);
 
-            // Listen for the addition of answerCandidates
-            if(call.offerCandidates?.length > 0){ // && answerCandidates.count != answerCandidatesCount
-                //console.log('Response recieved ice candidate');
-                const candidate = new RTCIceCandidate(call.offerCandidates[offerCandidatesCount]);
-                peerConnection.addIceCandidate(candidate);
-                offerCandidatesCount++;
-            }
-        });
-    }
+		// Listen for changes to the call
+		unsubAnswer = onSnapshot(doc(db, 'calls', callId), async (doc) => {
+			const call = doc.data();
 
-    onMount(async () => {
-        const devices = await navigator.mediaDevices?.enumerateDevices();
-        cameras = devices.filter(device => device.kind === 'videoinput');
+			// Listen for the addition of answerCandidates
+			if (call.offerCandidates?.length > 0) {
+				// && answerCandidates.count != answerCandidatesCount
+				//console.log('Response recieved ice candidate');
+				const candidate = new RTCIceCandidate(call.offerCandidates[offerCandidatesCount]);
+				peerConnection.addIceCandidate(candidate);
+				offerCandidatesCount++;
+			}
+		});
+	};
 
-        value = cameras[1];
+	onMount(async () => {
+		const devices = await navigator.mediaDevices?.enumerateDevices();
+		cameras = devices.filter((device) => device.kind === 'videoinput');
 
-        try{
-            localSource.srcObject = await getVideo(value);
-        }
-        catch(err){
-            console.log(err);
-            isCameraWorking = false;
-        }
-        
-        remoteSource.srcObject = new MediaStream();
-        // remoteSource.srcObject = await getVideo(cameras[2]);
-    });
+		value = cameras[1];
 
+		try {
+			localSource.srcObject = await getVideo(value);
+		} catch (err) {
+			console.log(err);
+			isCameraWorking = false;
+		}
+
+		remoteSource.srcObject = new MediaStream();
+		// remoteSource.srcObject = await getVideo(cameras[2]);
+	});
 </script>
+
 <div>
-    <span>
-        <h3>Local Stream</h3>
-        <div>
-            <select bind:value on:change="{() => camerUpdated()}" >
-                {#each cameras as camera}
-                    <option value={camera}>
-                        {camera.label}
-                    </option>
-                {/each}
-            </select>
-        </div>
+	<span>
+		<h3>Local Stream</h3>
+		<div>
+			<select bind:value on:change={() => camerUpdated()}>
+				{#each cameras as camera}
+					<option value={camera}>
+						{camera.label}
+					</option>
+				{/each}
+			</select>
+		</div>
 
-        {#if !isCameraWorking}
-            <img alt="Camera not working" src="/NoVideo.png">
-        {/if}
+		{#if !isCameraWorking}
+			<img alt="Camera not working" src="/NoVideo.png" />
+		{/if}
 
-        <video bind:this={localSource} autoplay playsinline>
-            <track kind="captions">
-        </video>
+		<video bind:this={localSource} autoplay playsinline>
+			<track kind="captions" />
+		</video>
 
-        <button on:click={ async() => { callId = await startCall(callId) }}>Start Call</button>
+		<button
+			on:click={async () => {
+				callId = await startCall(callId);
+			}}>Start Call</button
+		>
 
-        <input type="text" value={callId} />
+		<input type="text" value={callId} />
 
-        <button on:click={() => { answerCall(callId) }}>Answer Call</button>
+		<button
+			on:click={() => {
+				answerCall(callId);
+			}}>Answer Call</button
+		>
 
-        <h3>Remote Stream</h3>
-        <video bind:this={remoteSource} autoplay playsinline>
-            <track kind="captions">
-        </video>
-    </span>
+		<h3>Remote Stream</h3>
+		<video bind:this={remoteSource} autoplay playsinline>
+			<track kind="captions" />
+		</video>
+	</span>
 </div>
