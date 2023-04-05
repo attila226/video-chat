@@ -1,5 +1,5 @@
 <script>
-    import { onMount } from 'svelte';
+    import { onMount, onDestroy } from 'svelte';
     // Import the functions you need from the SDKs you need
     import { initializeApp } from "firebase/app";
     import { getFirestore, collection, addDoc, doc, getDoc, updateDoc, onSnapshot } from 'firebase/firestore';
@@ -19,6 +19,11 @@
     let value = null;
     let isCameraWorking = true;
     let callId = '';
+
+    let unsubCaller = ()=>{}, unsubAnswer = ()=>{};
+
+    // Clear Firebase references when leaving page
+    onDestroy(() => {unsubCaller(); unsubAnswer();});
 
     const getVideo = async (camera) =>{
         try{
@@ -77,14 +82,13 @@
         return { roomWithOffer, peerConnection };
     }
 
-    const addOfferCandidate = async (callRef, candidate, isCaller) => {
+    const addOfferCandidate = async (callRef, candidate, isCaller = false) => {
         const docSnap = await getDoc(callRef);
         const call = docSnap.data();
 
         const candidates = isCaller ? call.offerCandidates : call.answerCandidates;
 
         candidates.push(candidate.toJSON() );
-        const updatedCandidates = isCaller ? { offerCandidates: candidates } : { answerCandidates: candidates };
 
         await updateDoc(callRef, call);
     }
@@ -105,7 +109,7 @@
 
     const startCall = async () => {
         let answerCandidatesCount = 0;
-        let offerReceived = false;
+        let answerReceived = false;
         // Create the WebRTC offer and peer connection
         const { roomWithOffer: offer, peerConnection } = await createOffer();
 
@@ -139,30 +143,28 @@
         };
 
         // Listen for changes to the call
-        const unsub = onSnapshot(doc(db, "calls", callId), async (doc) => {
+        unsubCaller = onSnapshot(doc(db, "calls", callId), async (doc) => {
             const call = doc.data();
 
              // Listen for remote answer
-             if(call.offer && !offerReceived){
-                offerReceived = true;
-                const answer = new RTCSessionDescription(call.offer);
-                await peerConnection.setRemoteDescription(answer);
+             if(call.answer && !answerReceived){
+                answerReceived = true;
+                // onicecandidate is not firing, indicating an issue with the peer connection
+                const answerDescription = new RTCSessionDescription(call.answer);
+                peerConnection.setRemoteDescription(answerDescription);
              }
 
             // Listen for the addition of offerCandidates
-            if(call.offerCandidates.length > 0){
-                console.log('Caller Recieved offer canidates');
+            if(call.answerCandidates?.length > 0){
+                //console.log('Caller Recieved answer ICE canidates');
+                const candidate = new RTCIceCandidate(call.answerCandidates[answerCandidatesCount]);
+                peerConnection.addIceCandidate(candidate);
                 answerCandidatesCount += 1;
-                peerConnection.addIceCandidate(call.offerCandidates[answerCandidatesCount]);
             }
         });
-
     }
 
-    // TODO: Consider just passing the ID, and then calling based on the ID, so we don't have to mess with this.
     const updateCallDB = async (callDoc, answer) => {
-        console.log('Update DB with call answer', answer);
-
         // Update the original record
         await updateDoc(callDoc, { answer });
     }
@@ -172,14 +174,12 @@
         const call = await getDoc(callDoc);
         const offer = call.data().offer;
 
-        console.log('getOffer', offer);
-
         return { callDoc, offer } ;
     }
 
     const answerCall = async () => {
         const peerConnection = createPeerConnection();
-        let answerCandidatesCount = 1;
+        let offerCandidatesCount = 0;
 
         const { callDoc, offer: offerDescription } = await getOffer(callId);
 
@@ -187,12 +187,12 @@
         peerConnection.onicecandidate = (event) => {
             // If there are ice candidates, share them with the peer, so the peer can add them
             if(event.candidate){
-                console.log('answer peerConnection.onicecandidate', event.candidate.toJSON());
+                console.log('answer onicecandidate', event.candidate.toJSON());
                 addOfferCandidate(callDoc, event.candidate, false);
             }
         };
 
-        const remoteDescription = new RTCSessionDescription(offerDescription)
+        const remoteDescription = new RTCSessionDescription(offerDescription);
         peerConnection.setRemoteDescription(remoteDescription);
 
         const answerDescription = await peerConnection.createAnswer({ offerToReceiveAudio: true, offerToReceiveVideo: true});
@@ -206,19 +206,17 @@
         await updateCallDB(callDoc, answer);
         
         // Listen for changes to the call
-        const unsub = onSnapshot(doc(db, "calls", callId), async (doc) => {
+        unsubAnswer = onSnapshot(doc(db, "calls", callId), async (doc) => {
             const call = doc.data();
 
             // Listen for the addition of answerCandidates
-            // TODO: Check answerCandidatesCount so that we only run this on answerCandidates changes
-            if(call.answerCandidates){ // && answerCandidates.count != answerCandidatesCount
-                console.log('Responded recieved ice candidate');
-                peerConnection.addIceCandidate(call.answerCandidates[answerCandidatesCount]);
-                answerCandidatesCount++;
+            if(call.offerCandidates?.length > 0){ // && answerCandidates.count != answerCandidatesCount
+                //console.log('Response recieved ice candidate');
+                const candidate = new RTCIceCandidate(call.offerCandidates[offerCandidatesCount]);
+                peerConnection.addIceCandidate(candidate);
+                offerCandidatesCount++;
             }
         });
-
-        console.log('Answer finished');
     }
 
     onMount(async () => {
