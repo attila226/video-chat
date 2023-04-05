@@ -107,7 +107,7 @@
         return { ...call, id: callRef.id };
     }
 
-    const startCall = async () => {
+    const startCall = async (callId) => {
         let answerCandidatesCount = 0;
         let answerReceived = false;
         // Create the WebRTC offer and peer connection
@@ -162,6 +162,8 @@
                 answerCandidatesCount += 1;
             }
         });
+
+        return callId;
     }
 
     const updateCallDB = async (callDoc, answer) => {
@@ -177,7 +179,7 @@
         return { callDoc, offer } ;
     }
 
-    const answerCall = async () => {
+    const answerCall = async (callId) => {
         const peerConnection = createPeerConnection();
         let offerCandidatesCount = 0;
 
@@ -233,7 +235,6 @@
             isCameraWorking = false;
         }
         
-        // TODO: Remove this once we have the video coming from the peer connection
         remoteSource.srcObject = new MediaStream();
         // remoteSource.srcObject = await getVideo(cameras[2]);
     });
@@ -260,11 +261,11 @@
             <track kind="captions">
         </video>
 
-        <button on:click={startCall}>Start Call</button>
+        <button on:click={ async() => { callId = await startCall(callId) }}>Start Call</button>
 
         <input type="text" value={callId} />
 
-        <button on:click={answerCall}>Answer Call</button>
+        <button on:click={() => { answerCall(callId) }}>Answer Call</button>
 
         <h3>Remote Stream</h3>
         <video bind:this={remoteSource} autoplay playsinline>
