@@ -1,25 +1,22 @@
 <script>
 	import { onMount, onDestroy } from 'svelte';
-	// Import the functions you need from the SDKs you need
-	import { initializeApp } from 'firebase/app';
 	import {
-		getFirestore,
-		collection,
-		addDoc,
-		doc,
-		getDoc,
-		updateDoc,
-		onSnapshot
-	} from 'firebase/firestore';
-
-	import { PUBLIC_FIREBASE_CONFIG } from '$env/static/public';
+		initDB,
+		addOfferCandidate,
+		insertCall,
+		updateCallDB,
+		getOffer,
+		getCallDoc
+	} from '../lib/data';
+	import { onSnapshot } from 'firebase/firestore';
 
 	// Your web app's Firebase configuration
+	import { PUBLIC_FIREBASE_CONFIG } from '$env/static/public';
+
 	const firebaseConfig = JSON.parse(PUBLIC_FIREBASE_CONFIG);
 
 	// Initialize Firebase
-	const app = initializeApp(firebaseConfig);
-	const db = getFirestore(app);
+	const db = initDB(firebaseConfig);
 
 	let localSource = null;
 	let remoteSource = null;
@@ -91,43 +88,15 @@
 		return { roomWithOffer, peerConnection };
 	};
 
-	const addOfferCandidate = async (callRef, candidate, isCaller = false) => {
-		const docSnap = await getDoc(callRef);
-		const call = docSnap.data();
-
-		const candidates = isCaller ? call.offerCandidates : call.answerCandidates;
-
-		candidates.push(candidate.toJSON());
-
-		await updateDoc(callRef, call);
-	};
-
-	const createCall = async (offer) => {
-		console.log('Send offer', offer);
-
-		const offerCandidates = [];
-		const answerCandidates = [];
-
-		const callRef = await addDoc(collection(db, 'calls'), {
-			offer,
-			offerCandidates,
-			answerCandidates
-		});
-		const docSnap = await getDoc(callRef);
-
-		const call = docSnap.data();
-
-		return { ...call, id: callRef.id };
-	};
-
 	const startCall = async (callId) => {
 		let answerCandidatesCount = 0;
 		let answerReceived = false;
+
 		// Create the WebRTC offer and peer connection
-		const { roomWithOffer: offer, peerConnection } = await createOffer();
+		const { roomWithOffer: offer, peerConnection } = await createOffer(createPeerConnection);
 
 		// Add the call to the DB
-		let call = await createCall(offer);
+		let call = await insertCall(db, offer);
 		callId = call.id;
 
 		// Send the video and audio tracks to the peer connection
@@ -156,7 +125,7 @@
 		};
 
 		// Listen for changes to the call
-		unsubCaller = onSnapshot(doc(db, 'calls', callId), async (doc) => {
+		unsubCaller = onSnapshot(getCallDoc(db, callId), async (doc) => {
 			const call = doc.data();
 
 			// Listen for remote answer
@@ -179,24 +148,11 @@
 		return callId;
 	};
 
-	const updateCallDB = async (callDoc, answer) => {
-		// Update the original record
-		await updateDoc(callDoc, { answer });
-	};
-
-	const getOffer = async (callId) => {
-		const callDoc = doc(db, 'calls', callId);
-		const call = await getDoc(callDoc);
-		const offer = call.data().offer;
-
-		return { callDoc, offer };
-	};
-
 	const answerCall = async (callId) => {
 		const peerConnection = createPeerConnection();
 		let offerCandidatesCount = 0;
 
-		const { callDoc, offer: offerDescription } = await getOffer(callId);
+		const { callDoc, offer: offerDescription } = await getOffer(db, callId);
 
 		// Get candidates for caller, save to db
 		peerConnection.onicecandidate = (event) => {
@@ -224,7 +180,7 @@
 		await updateCallDB(callDoc, answer);
 
 		// Listen for changes to the call
-		unsubAnswer = onSnapshot(doc(db, 'calls', callId), async (doc) => {
+		unsubAnswer = onSnapshot(getCallDoc(db, callId), async (doc) => {
 			const call = doc.data();
 
 			// Listen for the addition of answerCandidates
