@@ -6,9 +6,8 @@
 		insertCall,
 		updateCallDB,
 		getOffer,
-		getCallDoc
+		listenToCallChanges
 	} from '../lib/data';
-	import { onSnapshot } from 'firebase/firestore';
 
 	// Your web app's Firebase configuration
 	import { PUBLIC_FIREBASE_CONFIG } from '$env/static/public';
@@ -125,9 +124,7 @@
 		};
 
 		// Listen for changes to the call
-		unsubCaller = onSnapshot(getCallDoc(db, callId), async (doc) => {
-			const call = doc.data();
-
+		unsubCaller = listenToCallChanges(db, callId, (call) => {
 			// Listen for remote answer
 			if (call.answer && !answerReceived) {
 				answerReceived = true;
@@ -180,9 +177,7 @@
 		await updateCallDB(callDoc, answer);
 
 		// Listen for changes to the call
-		unsubAnswer = onSnapshot(getCallDoc(db, callId), async (doc) => {
-			const call = doc.data();
-
+		unsubAnswer = listenToCallChanges(db, callId, (call) => {
 			// Listen for the addition of answerCandidates
 			if (call.offerCandidates?.length > 0) {
 				// && answerCandidates.count != answerCandidatesCount
