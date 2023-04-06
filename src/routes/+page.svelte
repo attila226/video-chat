@@ -8,6 +8,8 @@
 		getOffer,
 		listenToCallChanges
 	} from '../lib/data';
+	import { getVideo } from '../lib/camera';
+	import { createPeerConnection, createOffer } from '../lib/webRTC';
 
 	// Your web app's Firebase configuration
 	import { PUBLIC_FIREBASE_CONFIG } from '$env/static/public';
@@ -33,58 +35,15 @@
 		unsubAnswer();
 	});
 
-	const getVideo = async (camera) => {
-		try {
-			const videoConstaints = camera ? { deviceId: { exact: camera.deviceId } } : true;
-			return await navigator.mediaDevices.getUserMedia({ video: videoConstaints, audio: false });
-		} catch (error) {
-			console.log(error);
-			throw new Error('Camera not available');
-		}
-	};
-
-	const camerUpdated = async () => {
+	const cameraUpdated = async () => {
 		isCameraWorking = true;
 
 		try {
 			localSource.srcObject = await getVideo(value);
 		} catch (error) {
-			console.log('camerUpdated error', error);
+			console.log('cameraUpdated error', error);
 			isCameraWorking = false;
 		}
-	};
-
-	// https://webrtc.org/getting-started/peer-connections
-	function createPeerConnection() {
-		const config = {
-			iceServers: [
-				{
-					urls: ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302']
-				}
-			],
-			iceCandidatePoolSize: 10,
-			configuration: {
-				offerToReceiveAudio: true,
-				offerToReceiveVideo: true
-			}
-		};
-
-		return new RTCPeerConnection(config);
-	}
-
-	const createOffer = async () => {
-		const offerOptions = { offerToReceiveAudio: true, offerToReceiveVideo: true };
-		const peerConnection = createPeerConnection();
-
-		const offer = await peerConnection.createOffer(offerOptions);
-		await peerConnection.setLocalDescription(offer);
-
-		const roomWithOffer = {
-			sdp: offer.sdp,
-			type: offer.type
-		};
-
-		return { roomWithOffer, peerConnection };
 	};
 
 	const startCall = async (callId) => {
@@ -211,7 +170,7 @@
 	<span>
 		<h3>Local Stream</h3>
 		<div>
-			<select bind:value on:change={() => camerUpdated()}>
+			<select bind:value on:change={() => cameraUpdated()}>
 				{#each cameras as camera}
 					<option value={camera}>
 						{camera.label}
