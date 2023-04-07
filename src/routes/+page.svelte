@@ -8,7 +8,7 @@
 		getOffer,
 		listenToCallChanges
 	} from '../lib/data';
-	import { getVideo } from '../lib/camera';
+	import { cameraUpdated, getCameraList } from '../lib/camera';
 	import { createPeerConnection, createOffer } from '../lib/webRTC';
 
 	// Your web app's Firebase configuration
@@ -34,17 +34,6 @@
 		unsubCaller();
 		unsubAnswer();
 	});
-
-	const cameraUpdated = async () => {
-		isCameraWorking = true;
-
-		try {
-			localSource.srcObject = await getVideo(value);
-		} catch (error) {
-			console.log('cameraUpdated error', error);
-			isCameraWorking = false;
-		}
-	};
 
 	const startCall = async (callId) => {
 		let answerCandidatesCount = 0;
@@ -73,7 +62,7 @@
 
 		// Listen for remote ICE candidates
 		peerConnection.onicecandidate = (event) => {
-			console.log('caller onicecandidate', event);
+			console.log('caller peerConnection.onicecandidate', event);
 			// If there are ice candidates, share them with the peer, so the peer can add them
 			if (event.candidate) {
 				console.log(event.candidate.toJSON());
@@ -112,9 +101,10 @@
 
 		// Get candidates for caller, save to db
 		peerConnection.onicecandidate = (event) => {
+			console.log('answerer peerConnection.onicecandidate', event);
 			// If there are ice candidates, share them with the peer, so the peer can add them
 			if (event.candidate) {
-				console.log('answer onicecandidate', event.candidate.toJSON());
+				//console.log('answer onicecandidate', event.candidate.toJSON());
 				addOfferCandidate(callDoc, event.candidate, false);
 			}
 		};
@@ -149,17 +139,11 @@
 	};
 
 	onMount(async () => {
-		const devices = await navigator.mediaDevices?.enumerateDevices();
-		cameras = devices.filter((device) => device.kind === 'videoinput');
+		cameras = await getCameraList();
 
-		value = cameras[1];
+		value = cameras[0];
 
-		try {
-			localSource.srcObject = await getVideo(value);
-		} catch (err) {
-			console.log(err);
-			isCameraWorking = false;
-		}
+		await cameraUpdated(localSource, value);
 
 		remoteSource.srcObject = new MediaStream();
 		// remoteSource.srcObject = await getVideo(cameras[2]);
@@ -170,7 +154,10 @@
 	<span>
 		<h3>Local Stream</h3>
 		<div>
-			<select bind:value on:change={() => cameraUpdated()}>
+			<select
+				bind:value
+				on:change={async () => (isCameraWorking = await cameraUpdated(localSource, value))}
+			>
 				{#each cameras as camera}
 					<option value={camera}>
 						{camera.label}
@@ -183,7 +170,7 @@
 			<img alt="Camera not working" src="/NoVideo.png" />
 		{/if}
 
-		<video bind:this={localSource} autoplay playsinline>
+		<video bind:this={localSource} muted autoplay playsinline>
 			<track kind="captions" />
 		</video>
 
