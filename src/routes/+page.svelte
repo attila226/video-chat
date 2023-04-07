@@ -3,8 +3,9 @@
 	import {
 		initDB,
 		addOfferCandidate,
-		insertCall,
-		updateCallDB,
+		createCall,
+		updateCallWithOffer,
+		updateCallWithAnswer,
 		getOffer,
 		listenToCallChanges
 	} from '../lib/data';
@@ -36,15 +37,24 @@
 	});
 
 	const startCall = async (callId) => {
+		let callRef = await createCall(db);
+		callId = callRef.id;
 		let answerCandidatesCount = 0;
 		let answerReceived = false;
 
 		// Create the WebRTC offer and peer connection
 		const { roomWithOffer: offer, peerConnection } = await createOffer(createPeerConnection);
 
+		// Listen for remote ICE candidates
+		peerConnection.onicecandidate = (event) => {
+			// If there are ice candidates, share them with the peer, so the peer can add them
+			if (event.candidate) {
+				addOfferCandidate(callRef, event.candidate, true);
+			}
+		};
+
 		// Add the call to the DB
-		let call = await insertCall(db, offer);
-		callId = call.id;
+		await updateCallWithOffer(callRef, offer);
 
 		// Send the video and audio tracks to the peer connection
 		localSource.srcObject.getTracks().forEach((track) => {
@@ -58,17 +68,6 @@
 			event.streams[0].getTracks().forEach((track) => {
 				remoteSource.srcObject.addTrack(track);
 			});
-		};
-
-		// Listen for remote ICE candidates
-		peerConnection.onicecandidate = (event) => {
-			console.log('caller peerConnection.onicecandidate', event);
-			// If there are ice candidates, share them with the peer, so the peer can add them
-			if (event.candidate) {
-				console.log(event.candidate.toJSON());
-
-				addOfferCandidate(call, event.candidate, true);
-			}
 		};
 
 		// Listen for changes to the call
@@ -109,6 +108,14 @@
 			}
 		};
 
+		// Pull tracks from remote stream, add to video stream
+		peerConnection.ontrack = (event) => {
+			console.log('get local track', event);
+			event.streams[0].getTracks().forEach((track) => {
+				remoteSource.srcObject.addTrack(track);
+			});
+		};
+
 		const remoteDescription = new RTCSessionDescription(offerDescription);
 		peerConnection.setRemoteDescription(remoteDescription);
 
@@ -123,7 +130,7 @@
 			sdp: answerDescription.sdp
 		};
 
-		await updateCallDB(callDoc, answer);
+		await updateCallWithAnswer(callDoc, answer);
 
 		// Listen for changes to the call
 		unsubAnswer = listenToCallChanges(db, callId, (call) => {
@@ -141,7 +148,7 @@
 	onMount(async () => {
 		cameras = await getCameraList();
 
-		value = cameras[0];
+		value = cameras[1];
 
 		await cameraUpdated(localSource, value);
 
@@ -168,11 +175,11 @@
 
 		{#if !isCameraWorking}
 			<img alt="Camera not working" src="/NoVideo.png" />
+		{:else}
+			<video bind:this={localSource} muted autoplay playsinline>
+				<track kind="captions" />
+			</video>
 		{/if}
-
-		<video bind:this={localSource} muted autoplay playsinline>
-			<track kind="captions" />
-		</video>
 
 		<button
 			on:click={async () => {

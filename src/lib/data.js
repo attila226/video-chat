@@ -17,6 +17,18 @@ function initDB(config) {
 	return db;
 }
 
+const createCall = async (db) => {
+	const offerCandidates = [];
+	const answerCandidates = [];
+
+	const callRef = await addDoc(collection(db, 'calls'), {
+		offerCandidates,
+		answerCandidates
+	});
+
+	return callRef;
+};
+
 const addOfferCandidate = async (callRef, candidate, isCaller = false) => {
 	const docSnap = await getDoc(callRef);
 	const call = docSnap.data();
@@ -28,26 +40,18 @@ const addOfferCandidate = async (callRef, candidate, isCaller = false) => {
 	await updateDoc(callRef, call);
 };
 
-const insertCall = async (db, offer) => {
+const updateCallWithOffer = async (callRef, offer) => {
 	console.log('Send offer', offer);
 
-	const offerCandidates = [];
-	const answerCandidates = [];
+	await updateDoc(callRef, { offer });
 
-	const callRef = await addDoc(collection(db, 'calls'), {
-		offer,
-		offerCandidates,
-		answerCandidates
-	});
 	const docSnap = await getDoc(callRef);
-
 	const call = docSnap.data();
 
 	return { ...call, id: callRef.id };
 };
 
-const updateCallDB = async (callDoc, answer) => {
-	// Update the original record
+const updateCallWithAnswer = async (callDoc, answer) => {
 	await updateDoc(callDoc, { answer });
 };
 
@@ -76,8 +80,9 @@ const listenToCallChanges = (db, callId, callback) => {
 export {
 	initDB,
 	addOfferCandidate,
-	insertCall,
-	updateCallDB,
+	createCall,
+	updateCallWithOffer,
+	updateCallWithAnswer,
 	getOffer,
 	getCallDoc,
 	listenToCallChanges
