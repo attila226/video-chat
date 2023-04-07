@@ -1,18 +1,21 @@
-# create-svelte
+# video-chat
 
-Everything you need to build a Svelte project, powered by [`create-svelte`](https://github.com/sveltejs/kit/tree/master/packages/create-svelte).
+Peer to peer video chat.
 
-## Creating a project
+## Dependencies
 
-If you're seeing this, you've probably already done this step. Congrats!
+This project has a dependency on Firebase Cloud Firestore.
 
-```bash
-# create a new project in the current directory
-npm create svelte@latest
+https://console.firebase.google.com/
 
-# create a new project in my-app
-npm create svelte@latest my-app
+You'll also need to add a `.env` file, with a `PUBLIC_FIREBASE_CONFIG` setting.
+
+```.env
+#public
+PUBLIC_FIREBASE_CONFIG = { "apiKey": "", "authDomain": "", "projectId": "", "storageBucket": "", "messagingSenderId": "=", "appId": ""}
 ```
+
+The database requires a single collection called `Calls`
 
 ## Developing
 
