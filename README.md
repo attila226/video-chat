@@ -6,7 +6,9 @@ Peer to peer video chat.
 
 This project has a dependency on Firebase Cloud Firestore.
 
-https://console.firebase.google.com/
+The database requires a single collection called `Calls`
+
+https://firebase.google.com/docs/firestore/quickstart
 
 You'll also need to add a `.env` file, with a `PUBLIC_FIREBASE_CONFIG` setting.
 
@@ -14,8 +16,6 @@ You'll also need to add a `.env` file, with a `PUBLIC_FIREBASE_CONFIG` setting.
 #public
 PUBLIC_FIREBASE_CONFIG = { "apiKey": "", "authDomain": "", "projectId": "", "storageBucket": "", "messagingSenderId": "=", "appId": ""}
 ```
-
-The database requires a single collection called `Calls`
 
 ## Developing
 
