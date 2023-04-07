@@ -9,7 +9,7 @@
 		getOffer,
 		listenToCallChanges
 	} from '../lib/data';
-	import { cameraUpdated, getCameraList } from '../lib/camera';
+	import { cameraUpdated, getCameraList, getVideo } from '../lib/camera';
 	import { createPeerConnection, createOffer } from '../lib/webRTC';
 
 	// Your web app's Firebase configuration
@@ -43,7 +43,8 @@
 		let answerReceived = false;
 
 		// Create the WebRTC offer and peer connection
-		const { roomWithOffer: offer, peerConnection } = await createOffer(createPeerConnection);
+		const peerConnection = createPeerConnection();
+		const offer = await createOffer(peerConnection);
 
 		// Listen for remote ICE candidates
 		peerConnection.onicecandidate = (event) => {
@@ -51,6 +52,14 @@
 			if (event.candidate) {
 				addOfferCandidate(callRef, event.candidate, true);
 			}
+		};
+
+		// Listen for remote tracks
+		peerConnection.ontrack = (event) => {
+			console.log('Caller peerConnection.ontrack', event);
+			event.streams[0].getTracks().forEach((track) => {
+				remoteSource.srcObject.addTrack(track);
+			});
 		};
 
 		// Add the call to the DB
@@ -61,14 +70,6 @@
 			console.log('Add local tracks to peerConnection', track);
 			peerConnection.addTrack(track, localSource.srcObject);
 		});
-
-		// Listen for remote tracks
-		peerConnection.ontrack = (event) => {
-			console.log('get remote track', event);
-			event.streams[0].getTracks().forEach((track) => {
-				remoteSource.srcObject.addTrack(track);
-			});
-		};
 
 		// Listen for changes to the call
 		unsubCaller = listenToCallChanges(db, callId, (call) => {
@@ -82,8 +83,8 @@
 
 			// Listen for the addition of offerCandidates
 			if (call.answerCandidates?.length > 0) {
-				//console.log('Caller Recieved answer ICE canidates');
 				const candidate = new RTCIceCandidate(call.answerCandidates[answerCandidatesCount]);
+				console.log('Caller add ice candidate', candidate);
 				peerConnection.addIceCandidate(candidate);
 				answerCandidatesCount += 1;
 			}
@@ -93,24 +94,22 @@
 	};
 
 	const answerCall = async (callId) => {
+		const { callDoc, offer: offerDescription } = await getOffer(db, callId);
+
 		const peerConnection = createPeerConnection();
 		let offerCandidatesCount = 0;
 
-		const { callDoc, offer: offerDescription } = await getOffer(db, callId);
-
 		// Get candidates for caller, save to db
 		peerConnection.onicecandidate = (event) => {
-			console.log('answerer peerConnection.onicecandidate', event);
 			// If there are ice candidates, share them with the peer, so the peer can add them
 			if (event.candidate) {
-				//console.log('answer onicecandidate', event.candidate.toJSON());
 				addOfferCandidate(callDoc, event.candidate, false);
 			}
 		};
 
 		// Pull tracks from remote stream, add to video stream
 		peerConnection.ontrack = (event) => {
-			console.log('get local track', event);
+			console.log('Answerer peerConnection.ontrack', event);
 			event.streams[0].getTracks().forEach((track) => {
 				remoteSource.srcObject.addTrack(track);
 			});
@@ -132,13 +131,18 @@
 
 		await updateCallWithAnswer(callDoc, answer);
 
+		// Send the video and audio tracks to the peer connection
+		remoteSource.srcObject.getTracks().forEach((track) => {
+			console.log('Add remote tracks to peerConnection', track);
+			peerConnection.addTrack(track, remoteSource.srcObject);
+		});
+
 		// Listen for changes to the call
 		unsubAnswer = listenToCallChanges(db, callId, (call) => {
 			// Listen for the addition of answerCandidates
 			if (call.offerCandidates?.length > 0) {
-				// && answerCandidates.count != answerCandidatesCount
-				//console.log('Response recieved ice candidate');
 				const candidate = new RTCIceCandidate(call.offerCandidates[offerCandidatesCount]);
+				console.log('Answerer add ice candidate', candidate);
 				peerConnection.addIceCandidate(candidate);
 				offerCandidatesCount++;
 			}
@@ -148,12 +152,12 @@
 	onMount(async () => {
 		cameras = await getCameraList();
 
-		value = cameras[1];
+		value = cameras[0];
 
 		await cameraUpdated(localSource, value);
 
 		remoteSource.srcObject = new MediaStream();
-		// remoteSource.srcObject = await getVideo(cameras[2]);
+		remoteSource.srcObject = await getVideo(cameras[1]);
 	});
 </script>
 

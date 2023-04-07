@@ -14,11 +14,11 @@ const getCameraList = async () => {
 	return cameras;
 };
 
-const cameraUpdated = async (localSource, camera) => {
+const cameraUpdated = async (videoElement, camera) => {
 	let isCameraWorking = true;
 
 	try {
-		localSource.srcObject = await getVideo(camera);
+		videoElement.srcObject = await getVideo(camera);
 	} catch (error) {
 		console.log('cameraUpdated error', error);
 		isCameraWorking = false;
@@ -27,4 +27,4 @@ const cameraUpdated = async (localSource, camera) => {
 	return isCameraWorking;
 };
 
-export { cameraUpdated, getCameraList };
+export { cameraUpdated, getCameraList, getVideo };

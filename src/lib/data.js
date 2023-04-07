@@ -41,7 +41,7 @@ const addOfferCandidate = async (callRef, candidate, isCaller = false) => {
 };
 
 const updateCallWithOffer = async (callRef, offer) => {
-	console.log('Send offer', offer);
+	console.log('Update call with offer', offer);
 
 	await updateDoc(callRef, { offer });
 
@@ -52,6 +52,8 @@ const updateCallWithOffer = async (callRef, offer) => {
 };
 
 const updateCallWithAnswer = async (callDoc, answer) => {
+	console.log('Update call with answer', answer);
+
 	await updateDoc(callDoc, { answer });
 };
 

@@ -16,19 +16,18 @@ function createPeerConnection() {
 	return new RTCPeerConnection(config);
 }
 
-const createOffer = async () => {
+const createOffer = async (peerConnection) => {
 	const offerOptions = { offerToReceiveAudio: true, offerToReceiveVideo: true };
-	const peerConnection = createPeerConnection();
 
-	const offer = await peerConnection.createOffer(offerOptions);
-	await peerConnection.setLocalDescription(offer);
+	const offerDescription = await peerConnection.createOffer(offerOptions);
+	await peerConnection.setLocalDescription(offerDescription);
 
-	const roomWithOffer = {
-		sdp: offer.sdp,
-		type: offer.type
+	const offer = {
+		sdp: offerDescription.sdp,
+		type: offerDescription.type
 	};
 
-	return { roomWithOffer, peerConnection };
+	return offer;
 };
 
 export { createPeerConnection, createOffer };
