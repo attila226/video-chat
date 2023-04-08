@@ -7,7 +7,10 @@ import {
 	updateDoc,
 	collection,
 	addDoc,
-	onSnapshot
+	deleteDoc,
+	onSnapshot,
+	query,
+	getDocs
 } from 'firebase/firestore';
 
 function initDB(config) {
@@ -79,6 +82,20 @@ const listenToCallChanges = (db, callId, callback) => {
 	return unsubCaller;
 };
 
+const deleteCollectionById = async (db, id) => {
+	await deleteDoc(doc(db, 'calls', id));
+};
+
+// Caution, deletes all calls
+const deleteAllCallls = async (db) => {
+	const q = query(collection(db, 'calls'));
+
+	const querySnapshot = await getDocs(q);
+	querySnapshot.forEach(async (doc) => {
+		await deleteCollectionById(db, doc.id);
+	});
+};
+
 export {
 	initDB,
 	addOfferCandidate,
@@ -87,5 +104,6 @@ export {
 	updateCallWithAnswer,
 	getOffer,
 	getCallDoc,
-	listenToCallChanges
+	listenToCallChanges,
+	deleteAllCallls
 };

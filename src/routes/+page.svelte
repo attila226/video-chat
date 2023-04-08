@@ -180,7 +180,7 @@
 		{#if !isCameraWorking}
 			<img alt="Camera not working" src="/NoVideo.png" />
 		{:else}
-			<video bind:this={localSource} muted autoplay playsinline>
+			<video bind:this={localSource} autoplay playsinline>
 				<track kind="captions" />
 			</video>
 		{/if}
