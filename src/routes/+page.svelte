@@ -9,8 +9,8 @@
 		getOffer,
 		listenToCallChanges
 	} from '../lib/data';
-	import { cameraUpdated, getCameraList, getVideo } from '../lib/camera';
-	import { createPeerConnection, createOffer } from '../lib/webRTC';
+	import { cameraUpdated, getCameraList, getVideo } from '$lib/camera';
+	import { createPeerConnection, createOffer } from '$lib/webRTC';
 
 	// Your web app's Firebase configuration
 	import { PUBLIC_FIREBASE_CONFIG } from '$env/static/public';
