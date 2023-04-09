@@ -164,7 +164,12 @@
 
 <div class="container">
 	<div class="header">
+		<label for="cameras" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+			>Camera</label
+		>
 		<select
+			id="cameras"
+			class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
 			bind:value
 			on:change={async () => (isCameraWorking = await cameraUpdated(localSource, value))}
 		>
@@ -174,6 +179,8 @@
 				</option>
 			{/each}
 		</select>
+
+		<p class="text-lg text-gray-900 dark:text-white">Call {callId}</p>
 	</div>
 
 	<div class="video1">
@@ -194,14 +201,14 @@
 
 	<div class="controls">
 		<button
+			class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
 			on:click={async () => {
 				callId = await startCall(callId);
 			}}>Start Call</button
 		>
 
-		<input type="text" value={callId} />
-
 		<button
+			class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
 			on:click={() => {
 				answerCall(callId);
 			}}>Answer Call</button
@@ -209,7 +216,7 @@
 	</div>
 </div>
 
-<style>
+<style lang="postcss">
 	.container {
 		display: grid;
 		grid-template-columns: 50% 50%;
