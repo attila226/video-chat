@@ -66,10 +66,6 @@
 		await updateCallWithOffer(callRef, offer);
 
 		// Send the video and audio tracks to the peer connection
-		localSource.srcObject.getTracks().forEach((track) => {
-			console.log('Add local tracks to peerConnection', track);
-			peerConnection.addTrack(track, localSource.srcObject);
-		});
 
 		// Listen for changes to the call
 		unsubCaller = listenToCallChanges(db, callId, (call) => {
@@ -79,6 +75,11 @@
 				// onicecandidate is not firing, indicating an issue with the peer connection
 				const answerDescription = new RTCSessionDescription(call.answer);
 				peerConnection.setRemoteDescription(answerDescription);
+
+				localSource.srcObject.getTracks().forEach((track) => {
+					console.log('Add local tracks to peerConnection', track);
+					peerConnection.addTrack(track, localSource.srcObject);
+				});
 			}
 
 			// Listen for the addition of offerCandidates
@@ -157,26 +158,25 @@
 		await cameraUpdated(localSource, value);
 
 		remoteSource.srcObject = new MediaStream();
-		remoteSource.srcObject = await getVideo(cameras[1]);
+		remoteSource.srcObject = await getVideo(cameras[2]);
 	});
 </script>
 
-<div>
-	<span>
-		<h3>Local Stream</h3>
-		<div>
-			<select
-				bind:value
-				on:change={async () => (isCameraWorking = await cameraUpdated(localSource, value))}
-			>
-				{#each cameras as camera}
-					<option value={camera}>
-						{camera.label}
-					</option>
-				{/each}
-			</select>
-		</div>
+<div class="container">
+	<div class="header">
+		<select
+			bind:value
+			on:change={async () => (isCameraWorking = await cameraUpdated(localSource, value))}
+		>
+			{#each cameras as camera}
+				<option value={camera}>
+					{camera.label}
+				</option>
+			{/each}
+		</select>
+	</div>
 
+	<div class="video1">
 		{#if !isCameraWorking}
 			<img alt="Camera not working" src="/NoVideo.png" />
 		{:else}
@@ -184,7 +184,15 @@
 				<track kind="captions" />
 			</video>
 		{/if}
+	</div>
 
+	<div class="video2">
+		<video bind:this={remoteSource} autoplay playsinline>
+			<track kind="captions" />
+		</video>
+	</div>
+
+	<div class="controls">
 		<button
 			on:click={async () => {
 				callId = await startCall(callId);
@@ -198,10 +206,43 @@
 				answerCall(callId);
 			}}>Answer Call</button
 		>
-
-		<h3>Remote Stream</h3>
-		<video bind:this={remoteSource} autoplay playsinline>
-			<track kind="captions" />
-		</video>
-	</span>
+	</div>
 </div>
+
+<style>
+	.container {
+		display: grid;
+		grid-template-columns: 50% 50%;
+		grid-auto-rows: minmax(100px, auto);
+		grid-gap: 10px;
+	}
+
+	.header {
+		grid-row: 1;
+		grid-column: 1 / 3;
+		display: flex;
+		align-items: center;
+	}
+
+	.video1 {
+		grid-row: 2;
+		grid-column: 1;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+	.video2 {
+		grid-row: 2;
+		grid-column: 2;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+	.controls {
+		grid-row: 3;
+		grid-column: 1 / 3;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+</style>
