@@ -78,7 +78,7 @@
 				peerConnection.setRemoteDescription(answerDescription);
 
 				localSource.srcObject.getTracks().forEach((track) => {
-					console.log('Add local tracks to peerConnection', track);
+					console.log('Add caller tracks to peerConnection', track);
 					peerConnection.addTrack(track, localSource.srcObject);
 				});
 			}
@@ -138,7 +138,7 @@
 
 		// Send the video and audio tracks to the peer connection
 		remoteSource.srcObject.getTracks().forEach((track) => {
-			console.log('Add remote tracks to peerConnection', track);
+			console.log('Add answerer tracks to peerConnection', track);
 			peerConnection.addTrack(track, remoteSource.srcObject);
 		});
 
@@ -201,7 +201,7 @@
 		{#if !isCameraWorking}
 			<img alt="Camera not working" src="/NoVideo.png" />
 		{:else}
-			<video bind:this={localSource} autoplay playsinline>
+			<video bind:this={localSource} autoplay muted playsinline>
 				<track kind="captions" />
 			</video>
 		{/if}
