@@ -1,8 +1,17 @@
 <script>
 	import { goto } from '$app/navigation';
 	import { getVideo } from '$lib/camera';
+	import { initDB, isValidCall } from '$lib/data';
+
+	import { PUBLIC_FIREBASE_CONFIG } from '$env/static/public';
+
+	const firebaseConfig = JSON.parse(PUBLIC_FIREBASE_CONFIG);
+
+	// Initialize Firebase
+	const db = initDB(firebaseConfig);
 
 	let callId = '';
+	let isInvalidId = false;
 	let showModal = false;
 
 	const startMeeting = async () => {
@@ -17,8 +26,13 @@
 	const joinMeeting = async () => {
 		const route = `/call/${callId}`;
 		await getVideo();
-		// TODO: Validate that the call ID is valid
-		goto(route);
+		const isValid = await isValidCall(db, callId);
+		if (isValid) {
+			isInvalidId = false;
+			goto(route);
+		} else {
+			isInvalidId = true;
+		}
 	};
 </script>
 
@@ -77,6 +91,11 @@
 										required
 									/>
 								</div>
+								{#if isInvalidId}
+									<p id="filled_error_help" class="mt-2 text-xs text-red-600 dark:text-red-400">
+										<span class="font-medium">Not a valid meeting ID</span>
+									</p>
+								{/if}
 								<button
 									on:click={joinMeeting}
 									type="submit"

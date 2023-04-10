@@ -64,6 +64,14 @@ const getCallDoc = (db, callId) => {
 	return doc(db, 'calls', callId);
 };
 
+const isValidCall = async (db, callId) => {
+	const callDoc = getCallDoc(db, callId);
+	const call = await getDoc(callDoc);
+	const data = call.data();
+
+	return data !== undefined;
+};
+
 const getOffer = async (db, callId) => {
 	const callDoc = getCallDoc(db, callId);
 	const call = await getDoc(callDoc);
@@ -103,6 +111,7 @@ export {
 	updateCallWithOffer,
 	updateCallWithAnswer,
 	getOffer,
+	isValidCall,
 	getCallDoc,
 	listenToCallChanges,
 	deleteAllCallls

@@ -84,11 +84,14 @@
 			}
 
 			// Listen for the addition of offerCandidates
-			if (call.answerCandidates?.length > 0) {
+			if (
+				call.answerCandidates?.length > 0 &&
+				call.answerCandidates?.length > answerCandidatesCount
+			) {
 				const candidate = new RTCIceCandidate(call.answerCandidates[answerCandidatesCount]);
 				console.log('Caller add ice candidate', candidate);
 				peerConnection.addIceCandidate(candidate);
-				answerCandidatesCount += 1;
+				answerCandidatesCount++;
 			}
 		});
 
@@ -142,7 +145,7 @@
 		// Listen for changes to the call
 		unsubAnswer = listenToCallChanges(db, callId, (call) => {
 			// Listen for the addition of answerCandidates
-			if (call.offerCandidates?.length > 0) {
+			if (call.offerCandidates?.length > 0 && call.offerCandidates?.length > offerCandidatesCount) {
 				const candidate = new RTCIceCandidate(call.offerCandidates[offerCandidatesCount]);
 				console.log('Answerer add ice candidate', candidate);
 				peerConnection.addIceCandidate(candidate);
@@ -213,7 +216,7 @@
 	<div class="controls">
 		<button
 			on:click={() => {
-				navigator.clipboard.writeText(window.location.href.replace('start', callId));
+				navigator.clipboard.writeText(callId);
 			}}
 			type="button"
 			class="w-[56px] h-[56px] text-gray-500 bg-white rounded-full border border-gray-200 dark:border-gray-600 hover:text-gray-900 shadow-sm dark:hover:text-white dark:text-gray-400 hover:bg-gray-50 dark:bg-gray-700 dark:hover:bg-gray-600 focus:ring-4 focus:ring-gray-300 focus:outline-none dark:focus:ring-gray-400"
