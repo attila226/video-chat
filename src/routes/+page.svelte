@@ -1,16 +1,24 @@
 <script>
 	import { goto } from '$app/navigation';
+	import { getVideo } from '$lib/camera';
 
 	let callId = '';
 	let showModal = false;
+
+	const startMeeting = async () => {
+		await getVideo();
+		goto('/call/start');
+	};
 
 	const toggleModal = () => {
 		showModal = !showModal;
 	};
 
-	const joinMeeting = () => {
-		console.log(`/call/${callId}`);
-		setTimeout(() => goto(`/call/${callId}`), 0);
+	const joinMeeting = async () => {
+		const route = `/call/${callId}`;
+		await getVideo();
+		// TODO: Validate that the call ID is valid
+		goto(route);
 	};
 </script>
 
@@ -20,11 +28,11 @@
 	</div>
 
 	<div class="start">
-		<a href="/call/start">
-			<button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-				>Start a Metting</button
-			>
-		</a>
+		<button
+			on:click={startMeeting}
+			class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+			>Start a Metting</button
+		>
 	</div>
 
 	<div class="join">
