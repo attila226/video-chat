@@ -55,6 +55,11 @@
 			}
 		};
 
+		localSource.srcObject.getTracks().forEach((track) => {
+			console.log('Add caller tracks to peerConnection', track);
+			peerConnection.addTrack(track, localSource.srcObject);
+		});
+
 		// Listen for remote tracks
 		peerConnection.ontrack = (event) => {
 			console.log('Caller peerConnection.ontrack', event);
@@ -76,11 +81,6 @@
 				// onicecandidate is not firing, indicating an issue with the peer connection
 				const answerDescription = new RTCSessionDescription(call.answer);
 				peerConnection.setRemoteDescription(answerDescription);
-
-				localSource.srcObject.getTracks().forEach((track) => {
-					console.log('Add caller tracks to peerConnection', track);
-					peerConnection.addTrack(track, localSource.srcObject);
-				});
 			}
 
 			// Listen for the addition of offerCandidates
@@ -109,6 +109,12 @@
 			}
 		};
 
+		// Send the video and audio tracks to the peer connection
+		localSource.srcObject.getTracks().forEach((track) => {
+			console.log('Add answerer tracks to peerConnection', track);
+			peerConnection.addTrack(track, localSource.srcObject);
+		});
+
 		// Pull tracks from remote stream, add to video stream
 		peerConnection.ontrack = (event) => {
 			console.log('Answerer peerConnection.ontrack', event);
@@ -132,12 +138,6 @@
 		};
 
 		await updateCallWithAnswer(callDoc, answer);
-
-		// Send the video and audio tracks to the peer connection
-		localSource.srcObject.getTracks().forEach((track) => {
-			console.log('Add answerer tracks to peerConnection', track);
-			peerConnection.addTrack(track, localSource.srcObject);
-		});
 
 		// Listen for changes to the call
 		unsubAnswer = listenToCallChanges(db, callId, (call) => {
