@@ -84,10 +84,7 @@
 			}
 
 			// Listen for the addition of offerCandidates
-			if (
-				call.answerCandidates?.length > 0 &&
-				call.answerCandidates?.length > answerCandidatesCount
-			) {
+			if (call.answerCandidates?.length > answerCandidatesCount) {
 				const candidate = new RTCIceCandidate(call.answerCandidates[answerCandidatesCount]);
 				console.log('Caller add ice candidate', candidate);
 				peerConnection.addIceCandidate(candidate);
@@ -137,15 +134,15 @@
 		await updateCallWithAnswer(callDoc, answer);
 
 		// Send the video and audio tracks to the peer connection
-		remoteSource.srcObject.getTracks().forEach((track) => {
+		localSource.srcObject.getTracks().forEach((track) => {
 			console.log('Add answerer tracks to peerConnection', track);
-			peerConnection.addTrack(track, remoteSource.srcObject);
+			peerConnection.addTrack(track, localSource.srcObject);
 		});
 
 		// Listen for changes to the call
 		unsubAnswer = listenToCallChanges(db, callId, (call) => {
 			// Listen for the addition of answerCandidates
-			if (call.offerCandidates?.length > 0 && call.offerCandidates?.length > offerCandidatesCount) {
+			if (call.offerCandidates?.length > offerCandidatesCount) {
 				const candidate = new RTCIceCandidate(call.offerCandidates[offerCandidatesCount]);
 				console.log('Answerer add ice candidate', candidate);
 				peerConnection.addIceCandidate(candidate);
