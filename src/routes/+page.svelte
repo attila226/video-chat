@@ -56,11 +56,7 @@
 	</div>
 	<div class="modal {showModal ? 'z-50' : '-z-50'}">
 		{#if showModal}
-			<div
-				tabindex="-1"
-				aria-hidden="true"
-				class="inset-1/2 w-full p-4 overflow-x-hidden overflow-y-auto md:inset-0 h-[calc(100%-1rem)] md:h-full"
-			>
+			<div tabindex="-1" aria-hidden="true" class="w-80 justify-center md:h-full">
 				<div class="relative w-full h-full max-w-md md:h-auto">
 					<!-- Modal content -->
 					<div class="relative bg-white rounded-lg shadow dark:bg-gray-700">
