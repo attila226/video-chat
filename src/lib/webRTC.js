@@ -4,6 +4,11 @@ function createPeerConnection() {
 		iceServers: [
 			{
 				urls: ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302']
+			},
+			{
+				urls: 'turn:turn.google.com:19302',
+				username: 'any-non-empty-string',
+				credential: 'any-non-empty-string'
 			}
 		],
 		iceCandidatePoolSize: 10,
