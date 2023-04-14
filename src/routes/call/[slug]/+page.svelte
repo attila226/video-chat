@@ -211,6 +211,10 @@
 	</div>
 
 	<div class="controls">
+		<p class="px-6 text-lg">
+			<span class="font-medium">Meeting ID:</span>
+			{callId === 'start' ? '_'.repeat(21) : callId}
+		</p>
 		<button
 			on:click={() => {
 				navigator.clipboard.writeText(callId);
@@ -233,7 +237,7 @@
 	</div>
 </div>
 
-<style lang="postcss">
+<style>
 	.container {
 		display: grid;
 		grid-template-columns: 50% 50%;
