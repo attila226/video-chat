@@ -4,11 +4,6 @@ function createPeerConnection() {
 		iceServers: [
 			{
 				urls: ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302']
-			},
-			{
-				urls: 'turn:turn.google.com:19302',
-				username: 'any-non-empty-string',
-				credential: 'any-non-empty-string'
 			}
 		],
 		iceCandidatePoolSize: 10,
@@ -33,6 +28,22 @@ const createOffer = async (peerConnection) => {
 	};
 
 	return offer;
+};
+
+const modifySdpBitrate = (sdp, bitrate = 1200) => {
+	let arr = sdp.split('\r\n');
+
+	arr.forEach((str, i) => {
+		if (/^a=fmtp:\d*/.test(str)) {
+			arr[i] =
+				str +
+				`;x-google-max-bitrate=${bitrate};x-google-min-bitrate=0;x-google-start-bitrate=${bitrate}`;
+		} else if (/^a=mid:(1|video)/.test(str)) {
+			arr[i] += `\r\nb=AS:${bitrate}`;
+		}
+	});
+
+	return arr.join('\r\n');
 };
 
 export { createPeerConnection, createOffer };

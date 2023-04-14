@@ -51,18 +51,19 @@
 		peerConnection.onicecandidate = (event) => {
 			// If there are ice candidates, share them with the peer, so the peer can add them
 			if (event.candidate) {
+				console.log('addOfferCandidate');
 				addOfferCandidate(callRef, event.candidate, true);
 			}
 		};
 
 		localSource.srcObject.getTracks().forEach((track) => {
-			console.log('Add caller tracks to peerConnection', track);
+			console.log('Add tracks to peerConnection', track);
 			peerConnection.addTrack(track, localSource.srcObject);
 		});
 
 		// Listen for remote tracks
 		peerConnection.ontrack = (event) => {
-			console.log('Caller peerConnection.ontrack', event);
+			console.log('peerConnection.ontrack', event);
 			event.streams[0].getTracks().forEach((track) => {
 				remoteSource.srcObject.addTrack(track);
 			});
@@ -86,7 +87,7 @@
 			// Listen for the addition of offerCandidates
 			if (call.answerCandidates?.length > answerCandidatesCount) {
 				const candidate = new RTCIceCandidate(call.answerCandidates[answerCandidatesCount]);
-				console.log('Caller add ice candidate', candidate);
+				console.log('Add ice candidate', candidate);
 				peerConnection.addIceCandidate(candidate);
 				answerCandidatesCount++;
 			}
@@ -96,28 +97,29 @@
 	};
 
 	const answerCall = async (callId) => {
+		let offerCandidatesCount = 0;
 		const { callDoc, offer: offerDescription } = await getOffer(db, callId);
 
 		const peerConnection = createPeerConnection();
-		let offerCandidatesCount = 0;
+
+		// Send the video and audio tracks to the peer connection
+		localSource.srcObject.getTracks().forEach((track) => {
+			console.log('Add tracks to peerConnection', track);
+			peerConnection.addTrack(track, localSource.srcObject);
+		});
 
 		// Get candidates for caller, save to db
 		peerConnection.onicecandidate = (event) => {
 			// If there are ice candidates, share them with the peer, so the peer can add them
 			if (event.candidate) {
+				console.log('addOfferCandidate');
 				addOfferCandidate(callDoc, event.candidate, false);
 			}
 		};
 
-		// Send the video and audio tracks to the peer connection
-		localSource.srcObject.getTracks().forEach((track) => {
-			console.log('Add answerer tracks to peerConnection', track);
-			peerConnection.addTrack(track, localSource.srcObject);
-		});
-
 		// Pull tracks from remote stream, add to video stream
 		peerConnection.ontrack = (event) => {
-			console.log('Answerer peerConnection.ontrack', event);
+			console.log('peerConnection.ontrack', event);
 			event.streams[0].getTracks().forEach((track) => {
 				remoteSource.srcObject.addTrack(track);
 			});
@@ -144,7 +146,7 @@
 			// Listen for the addition of answerCandidates
 			if (call.offerCandidates?.length > offerCandidatesCount) {
 				const candidate = new RTCIceCandidate(call.offerCandidates[offerCandidatesCount]);
-				console.log('Answerer add ice candidate', candidate);
+				console.log('Add ice candidate', candidate);
 				peerConnection.addIceCandidate(candidate);
 				offerCandidatesCount++;
 			}
@@ -153,9 +155,7 @@
 
 	onMount(async () => {
 		cameras = await getCameraList();
-
 		value = cameras[0];
-		console.log('camera[0', value);
 
 		await cameraUpdated(localSource, value);
 
