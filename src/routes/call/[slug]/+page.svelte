@@ -152,16 +152,14 @@
 	};
 
 	onMount(async () => {
-		console.log();
 		cameras = await getCameraList();
 
 		value = cameras[0];
+		console.log('camera[0', value);
 
 		await cameraUpdated(localSource, value);
 
 		remoteSource.srcObject = new MediaStream();
-		// Using for debugging
-		// remoteSource.srcObject = await getVideo(cameras[2]);
 
 		callId = $page.params.slug;
 
@@ -191,6 +189,10 @@
 					</option>
 				{/each}
 			</select>
+		{:else if cameras?.length === 1}
+			{cameras[0].label}
+		{:else}
+			No camera found
 		{/if}
 	</div>
 
