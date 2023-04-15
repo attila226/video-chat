@@ -173,7 +173,7 @@
 
 <div class="container">
 	<div class="header">
-		<label for="cameras" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+		<label for="cameras" class="block px-2 text-sm font-medium text-gray-900 dark:text-white"
 			>Camera</label
 		>
 		{#if cameras?.length > 1}
