@@ -4,7 +4,7 @@ Peer to peer video chat.
 
 Demo: https://video-chat-henna.vercel.app/
 
-[![Watch the video](https://img.youtube.com/vi/Ngg86gpt3kU/hqdefault.jpg)](https://youtu.be/Ngg86gpt3kU)
+[![Watch the video](https://img.youtube.com/vi/lEiaWRcgNws/hqdefault.jpg)](https://youtu.be/lEiaWRcgNws)
 
 ## Dependencies
 
