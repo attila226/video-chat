@@ -4,6 +4,8 @@ Peer to peer video chat.
 
 Demo: https://video-chat-henna.vercel.app/
 
+[![Watch the video](https://img.youtube.com/vi/Ngg86gpt3kU/hqdefault.jpg)](https://youtu.be/Ngg86gpt3kU)
+
 ## Dependencies
 
 This project has a dependency on Firebase Cloud Firestore.
