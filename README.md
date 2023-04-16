@@ -2,7 +2,7 @@
 
 Peer to peer video chat.
 
-Demo: https://video-chat-henna.vercel.app/
+https://video-chat-henna.vercel.app/
 
 [![Watch the video](https://img.youtube.com/vi/lEiaWRcgNws/hqdefault.jpg)](https://youtu.be/lEiaWRcgNws)
 
