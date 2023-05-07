@@ -5,8 +5,9 @@ export const handle = async ({ event, resolve }) => {
 
 	if (url.pathname.startsWith('/admin')) {
 		const auth = event.request.headers.get('Authorization');
+		const encodedAdminLogin = Buffer.from(ADMIN_LOGIN).toString('base64');
 
-		if (auth !== `Basic ${btoa(ADMIN_LOGIN)}`) {
+		if (auth !== `Basic ${encodedAdminLogin}`) {
 			return new Response('Not authorized', {
 				status: 401,
 				headers: {
