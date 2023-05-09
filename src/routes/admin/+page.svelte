@@ -51,7 +51,7 @@
 					<TableHeadCell>Answer SDP</TableHeadCell>
 				</TableHead>
 
-				<TableBody class="divide-y">
+				<TableBody>
 					{#each outputData(calls) as call}
 						<TableBodyRow>
 							<TableBodyCell
