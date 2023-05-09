@@ -90,11 +90,15 @@ const deleteCollectionById = async (db, id) => {
 	await deleteDoc(doc(db, 'calls', id));
 };
 
-// Caution, deletes all calls
-const deleteAllCallls = async (db) => {
+const getAllCalls = async (db) => {
 	const q = query(collection(db, 'calls'));
 
-	const querySnapshot = await getDocs(q);
+	return await getDocs(q);
+};
+
+// Caution, deletes all calls
+const deleteAllCallls = async (db) => {
+	const querySnapshot = await getAllCalls(db);
 	querySnapshot.forEach(async (doc) => {
 		await deleteCollectionById(db, doc.id);
 	});
@@ -110,5 +114,6 @@ export {
 	isValidCall,
 	getCallDoc,
 	listenToCallChanges,
+	getAllCalls,
 	deleteAllCallls
 };
