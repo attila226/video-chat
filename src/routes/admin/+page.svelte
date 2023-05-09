@@ -21,7 +21,11 @@
 	const callsPromise = getAllCalls(db);
 
 	const outputData = (data) => {
-		const rawData = data.docs.map((doc) => doc.data());
+		const rawData = data.docs.map((doc) => {
+			let id = doc.id;
+			let docData = doc.data();
+			return { id, ...docData };
+		});
 		console.log(rawData);
 		return rawData;
 	};
@@ -42,34 +46,29 @@
 		{:then calls}
 			<Table shadow>
 				<TableHead>
+					<TableHeadCell>ID</TableHeadCell>
 					<TableHeadCell>Offer SDP</TableHeadCell>
 					<TableHeadCell>Answer SDP</TableHeadCell>
-					<TableHeadCell>
-						<span class="sr-only"> Edit </span>
-					</TableHeadCell>
 				</TableHead>
 
 				<TableBody class="divide-y">
 					{#each outputData(calls) as call}
 						<TableBodyRow>
 							<TableBodyCell
-								><div class="h-40 overflow-y-scroll w-60">
+								><div>
+									{call.id}
+								</div></TableBodyCell
+							>
+							<TableBodyCell
+								><div class="h-40 w-72 overflow-y-scroll">
 									{@html formatObject(call.offer.sdp)}
 								</div></TableBodyCell
 							>
 							<TableBodyCell
-								><div class="h-40 overflow-y-scroll w-60">
+								><div class="h-40 w-72 overflow-y-scroll">
 									{@html formatObject(call.answer.sdp)}
 								</div></TableBodyCell
 							>
-							<TableBodyCell>
-								<a
-									href="/tables"
-									class="font-medium text-blue-600 hover:underline dark:text-blue-500"
-								>
-									Edit
-								</a>
-							</TableBodyCell>
 						</TableBodyRow>
 					{/each}
 				</TableBody>
